@@ -25,6 +25,7 @@ use block::ConcreteBlock;
 use cocoa::appkit::{
     CGFloat, NSApp, NSApplication, NSAutoresizingMaskOptions, NSBackingStoreBuffered, NSColor,
     NSEvent, NSView, NSViewHeightSizable, NSViewWidthSizable, NSWindow, NSWindowStyleMask,
+    NSWindowTitleVisibility,
 };
 use cocoa::base::{id, nil, BOOL, NO, YES};
 use cocoa::foundation::{
@@ -143,7 +144,9 @@ pub(crate) struct WindowBuilder {
     window_state: Option<WindowState>,
     resizable: bool,
     show_titlebar: bool,
+    show_title: bool,
     transparent: bool,
+    transparent_titlebar: bool,
 }
 
 #[derive(Clone)]
@@ -197,6 +200,8 @@ impl WindowBuilder {
             window_state: None,
             resizable: true,
             show_titlebar: true,
+            show_title: true,
+            transparent_titlebar: false,
             transparent: false,
         }
     }
@@ -221,8 +226,16 @@ impl WindowBuilder {
         self.show_titlebar = show_titlebar;
     }
 
+    pub fn show_title(&mut self, show_title: bool) {
+        self.show_title = show_title;
+    }
+
     pub fn set_transparent(&mut self, transparent: bool) {
         self.transparent = transparent;
+    }
+
+    pub fn set_transparent_titlebar(&mut self, transparent_titlebar: bool) {
+        self.transparent_titlebar = transparent_titlebar;
     }
 
     pub fn set_level(&mut self, level: WindowLevel) {
@@ -259,6 +272,10 @@ impl WindowBuilder {
                 style_mask |= NSWindowStyleMask::NSResizableWindowMask;
             }
 
+            if self.transparent_titlebar {
+                style_mask |= NSWindowStyleMask::NSFullSizeContentViewWindowMask;
+            }
+
             let screen_height = crate::Screen::get_display_rect().height();
             let position = self.position.unwrap_or_else(|| Point::new(20., 20.));
             let origin = NSPoint::new(position.x, screen_height - position.y - self.size.height); // Flip back
@@ -281,6 +298,14 @@ impl WindowBuilder {
             if self.transparent {
                 window.setOpaque_(NO);
                 window.setBackgroundColor_(NSColor::clearColor(nil));
+            }
+
+            if self.transparent_titlebar {
+                window.setTitlebarAppearsTransparent_(YES);
+            }
+
+            if !self.show_title {
+                window.setTitleVisibility_(NSWindowTitleVisibility::NSWindowTitleHidden);
             }
 
             window.setTitle_(make_nsstring(&self.title));
